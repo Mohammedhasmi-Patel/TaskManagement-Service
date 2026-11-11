@@ -170,6 +170,96 @@ public class CompaniesServiceTests
         Assert.Equal("/uploads/companies/uploaded-brand.png", _storageService.DeletedUrls[0]);
     }
 
+    [Fact]
+    public async Task GetAllAsync_WhenUserIsAuthenticated_ShouldReturnOnlyUsersCompaniesWithDefaultFirst()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var otherUserId = Guid.NewGuid();
+
+        await _companyRepository.AddAsync(Company.Create(userId, "Zeta Corp", "zeta-corp", isDefault: false));
+        await _companyRepository.AddAsync(Company.Create(userId, "Alpha Corp", "alpha-corp", isDefault: false));
+        await _companyRepository.AddAsync(Company.Create(userId, "Default Corp", "default-corp", isDefault: true));
+        await _companyRepository.AddAsync(Company.Create(otherUserId, "Other User Co", "other-user-co", isDefault: true));
+
+        // Act
+        var result = (await _service.GetAllAsync()).ToList();
+
+        // Assert
+        Assert.Equal(3, result.Count);
+        Assert.Equal("Default Corp", result[0].Name);
+        Assert.True(result[0].IsDefault);
+        Assert.Equal("Alpha Corp", result[1].Name);
+        Assert.Equal("Zeta Corp", result[2].Name);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WhenUserHasNoCompanies_ShouldReturnEmptyCollection()
+    {
+        // Act
+        var result = await _service.GetAllAsync();
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WhenUserIsUnauthenticated_ShouldThrowUnauthorizedException()
+    {
+        // Arrange
+        _currentUserService.UserId = null;
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedException>(() => _service.GetAllAsync());
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenCompanyExistsForUser_ShouldReturnCompany()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme Corp", "acme-corp", website: "https://acme.example.com", isDefault: true);
+        await _companyRepository.AddAsync(company);
+
+        // Act
+        var response = await _service.GetByIdAsync(company.Id);
+
+        // Assert
+        Assert.Equal(company.Id, response.Id);
+        Assert.Equal("Acme Corp", response.Name);
+        Assert.Equal("acme-corp", response.Slug);
+        Assert.Equal("https://acme.example.com", response.Website);
+        Assert.True(response.IsDefault);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenCompanyDoesNotExist_ShouldThrowNotFoundException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<NotFoundException>(() => _service.GetByIdAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenCompanyBelongsToAnotherUser_ShouldThrowNotFoundException()
+    {
+        // Arrange
+        var otherUserCompany = Company.Create(Guid.NewGuid(), "Other Co", "other-co");
+        await _companyRepository.AddAsync(otherUserCompany);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<NotFoundException>(() => _service.GetByIdAsync(otherUserCompany.Id));
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenUserIsUnauthenticated_ShouldThrowUnauthorizedException()
+    {
+        // Arrange
+        _currentUserService.UserId = null;
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedException>(() => _service.GetByIdAsync(Guid.NewGuid()));
+    }
+
     private sealed class InMemoryCompanyRepository : ICompanyRepository
     {
         private readonly List<Company> _companies = [];
@@ -178,6 +268,20 @@ public class CompaniesServiceTests
 
         public Task<Company?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(_companies.FirstOrDefault(c => c.Id == id));
+
+        public Task<Company?> GetByIdAndUserIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_companies.FirstOrDefault(c => c.Id == id && c.UserId == userId));
+
+        public Task<IReadOnlyList<Company>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<Company> result = _companies
+                .Where(c => c.UserId == userId)
+                .OrderByDescending(c => c.IsDefault)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            return Task.FromResult(result);
+        }
 
         public Task<bool> ExistsBySlugAsync(Guid userId, string slug, CancellationToken cancellationToken = default) =>
             Task.FromResult(_companies.Any(c => c.UserId == userId && c.Slug == slug));

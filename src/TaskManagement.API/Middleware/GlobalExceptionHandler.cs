@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 using TaskManagement.Application.Common.Exceptions;
+using TaskManagement.Application.Common.Models;
 
 namespace TaskManagement.API.Middleware;
 
@@ -16,117 +16,55 @@ public class GlobalExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
-        var (statusCode, problemDetails) = exception switch
+        var (statusCode, message) = exception switch
         {
-            ValidationException validationException => HandleValidationException(httpContext, validationException),
-            BadRequestException badRequestException => HandleBadRequestException(httpContext, badRequestException),
-            NotFoundException notFoundException => HandleNotFoundException(httpContext, notFoundException),
-            ConflictException conflictException => HandleConflictException(httpContext, conflictException),
-            UnauthorizedException unauthorizedException => HandleUnauthorizedException(httpContext, unauthorizedException),
-            UnauthorizedAccessException unauthorizedException => HandleUnauthorizedException(httpContext, unauthorizedException),
-            _ => HandleUnhandledException(httpContext, exception)
+            ValidationException validationException => (
+                StatusCodes.Status400BadRequest,
+                GetFirstValidationError(validationException)),
+            BadRequestException badRequestException => (
+                StatusCodes.Status400BadRequest,
+                badRequestException.Message),
+            NotFoundException notFoundException => (
+                StatusCodes.Status404NotFound,
+                notFoundException.Message),
+            ConflictException conflictException => (
+                StatusCodes.Status409Conflict,
+                conflictException.Message),
+            UnauthorizedException unauthorizedException => (
+                StatusCodes.Status401Unauthorized,
+                unauthorizedException.Message),
+            UnauthorizedAccessException unauthorizedException => (
+                StatusCodes.Status401Unauthorized,
+                unauthorizedException.Message),
+            _ => HandleUnhandledException(exception)
         };
 
-        httpContext.Response.StatusCode = statusCode;
-        httpContext.Response.ContentType = "application/problem+json";
+        var response = ApiResponse<object?>.FailureResponse(message, statusCode);
 
-        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        httpContext.Response.StatusCode = statusCode;
+        httpContext.Response.ContentType = "application/json";
+
+        await httpContext.Response.WriteAsJsonAsync(response, cancellationToken);
 
         return true;
     }
 
-    private static (int, ProblemDetails) HandleValidationException(HttpContext context, ValidationException ex)
+    private static string GetFirstValidationError(ValidationException ex)
     {
-        var problemDetails = new HttpValidationProblemDetails(ex.Errors)
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Validation Error",
-            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.1",
-            Detail = ex.Message,
-            Instance = context.Request.Path
-        };
-
-        return (StatusCodes.Status400BadRequest, problemDetails);
+        return ex.Errors
+            .SelectMany(e => e.Value)
+            .FirstOrDefault(m => !string.IsNullOrWhiteSpace(m))
+            ?? ex.Message;
     }
 
-    private static (int, ProblemDetails) HandleBadRequestException(HttpContext context, BadRequestException ex)
-    {
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Bad Request",
-            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.1",
-            Detail = ex.Message,
-            Instance = context.Request.Path
-        };
-
-        return (StatusCodes.Status400BadRequest, problemDetails);
-    }
-
-    private static (int, ProblemDetails) HandleNotFoundException(HttpContext context, NotFoundException ex)
-    {
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status404NotFound,
-            Title = "Resource Not Found",
-            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.5",
-            Detail = ex.Message,
-            Instance = context.Request.Path
-        };
-
-        return (StatusCodes.Status404NotFound, problemDetails);
-    }
-
-    private static (int, ProblemDetails) HandleConflictException(HttpContext context, ConflictException ex)
-    {
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status409Conflict,
-            Title = "Conflict",
-            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.10",
-            Detail = ex.Message,
-            Instance = context.Request.Path
-        };
-
-        return (StatusCodes.Status409Conflict, problemDetails);
-    }
-
-    private static (int, ProblemDetails) HandleUnauthorizedException(HttpContext context, Exception ex)
-    {
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status401Unauthorized,
-            Title = "Unauthorized",
-            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.2",
-            Detail = ex.Message,
-            Instance = context.Request.Path
-        };
-
-        return (StatusCodes.Status401Unauthorized, problemDetails);
-    }
-
-    private (int, ProblemDetails) HandleUnhandledException(HttpContext context, Exception ex)
+    private (int StatusCode, string Message) HandleUnhandledException(Exception ex)
     {
         _logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
 
-        var isDevelopment = _environment.IsDevelopment();
+        var message = _environment.IsDevelopment()
+            ? ex.Message
+            : "An unexpected error occurred. Please try again later.";
 
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "Internal Server Error",
-            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.6.1",
-            Detail = isDevelopment
-                ? ex.Message
-                : "An unexpected error occurred. Please try again later.",
-            Instance = context.Request.Path
-        };
-
-        if (isDevelopment)
-        {
-            problemDetails.Extensions["stackTrace"] = ex.StackTrace;
-        }
-
-        return (StatusCodes.Status500InternalServerError, problemDetails);
+        return (StatusCodes.Status500InternalServerError, message);
     }
 }

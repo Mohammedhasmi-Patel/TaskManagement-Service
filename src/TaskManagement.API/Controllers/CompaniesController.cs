@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaskManagement.Application.Common.Models;
 using TaskManagement.Application.DTOs.Companies;
 using TaskManagement.Application.Interfaces;
 
@@ -11,6 +12,36 @@ public class CompaniesController(ICompaniesService companiesService) : BaseApiCo
     private readonly ICompaniesService _companiesService = companiesService;
 
     /// <summary>
+    /// Gets all companies belonging to the authenticated user.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The user's companies ordered with the default company first.</returns>
+    [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<CompanyResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<IEnumerable<CompanyResponse>>>> GetAll(CancellationToken cancellationToken)
+    {
+        var response = await _companiesService.GetAllAsync(cancellationToken);
+        return OkResponse(response, "Companies retrieved successfully.");
+    }
+
+    /// <summary>
+    /// Gets a company by ID for the authenticated user.
+    /// </summary>
+    /// <param name="id">Company ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The requested company.</returns>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<CompanyResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<CompanyResponse>>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var response = await _companiesService.GetByIdAsync(id, cancellationToken);
+        return OkResponse(response, "Company retrieved successfully.");
+    }
+
+    /// <summary>
     /// Creates a new company for the authenticated user.
     /// </summary>
     /// <param name="request">Company creation details.</param>
@@ -18,16 +49,16 @@ public class CompaniesController(ICompaniesService companiesService) : BaseApiCo
     /// <returns>The newly created company.</returns>
     [HttpPost]
     [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(CompanyResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<CompanyResponse>> Create(
+    [ProducesResponseType(typeof(ApiResponse<CompanyResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<CompanyResponse>>> Create(
         [FromForm] CreateCompanyRequest request,
         CancellationToken cancellationToken)
     {
         var response = await _companiesService.CreateAsync(request, cancellationToken);
-        return Created($"/api/companies/{response.Id}", response);
+        return CreatedResponse(nameof(GetById), new { id = response.Id }, response, "Company created successfully.");
     }
 }
 

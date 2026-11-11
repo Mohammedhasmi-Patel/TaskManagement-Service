@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaskManagement.Application.Common.Models;
 using TaskManagement.Application.DTOs.Auth;
 using TaskManagement.Application.Interfaces;
 
@@ -19,15 +20,15 @@ public class AuthController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Authentication response containing access token and user profile.</returns>
     [HttpPost("register")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<AuthResponse>> Register(
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> Register(
         [FromBody] RegisterRequest request,
         CancellationToken cancellationToken)
     {
         var response = await _authService.RegisterAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetMe), new { }, response);
+        return CreatedResponse(nameof(GetMe), new { }, response, "User registered successfully.");
     }
 
     /// <summary>
@@ -37,15 +38,15 @@ public class AuthController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Authentication response containing access token and user profile.</returns>
     [HttpPost("login")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<AuthResponse>> Login(
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> Login(
         [FromBody] LoginRequest request,
         CancellationToken cancellationToken)
     {
         var response = await _authService.LoginAsync(request, cancellationToken);
-        return Ok(response);
+        return OkResponse(response, "Login successful.");
     }
 
     /// <summary>
@@ -55,15 +56,15 @@ public class AuthController(
     /// <returns>User profile.</returns>
     [Authorize]
     [HttpGet("me")]
-    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<UserResponse>> GetMe(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<UserResponse>>> GetMe(CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId
                      ?? throw new UnauthorizedAccessException("User is not authenticated.");
 
         var response = await _authService.GetCurrentUserAsync(userId, cancellationToken);
-        return Ok(response);
+        return OkResponse(response, "User profile retrieved successfully.");
     }
 }

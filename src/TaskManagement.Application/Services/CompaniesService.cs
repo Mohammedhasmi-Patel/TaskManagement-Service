@@ -26,8 +26,7 @@ public class CompaniesService(
             throw new ValidationException(validationResult.Errors);
         }
 
-        var userId = _currentUserService.UserId
-                     ?? throw new UnauthorizedException("User is not authenticated.");
+        var userId = GetAuthenticatedUserId();
 
         var normalizedSlug = request.Slug.Trim().ToLowerInvariant();
         var slugExists = await _companyRepository.ExistsBySlugAsync(userId, normalizedSlug, cancellationToken);
@@ -65,13 +64,7 @@ public class CompaniesService(
             await _companyRepository.AddAsync(company, cancellationToken);
             await _companyRepository.SaveChangesAsync(cancellationToken);
 
-            return new CompanyResponse(
-                company.Id,
-                company.Name,
-                company.Slug,
-                company.Logo,
-                company.Website,
-                company.IsDefault);
+            return MapToResponse(company);
         }
         catch
         {
@@ -82,5 +75,42 @@ public class CompaniesService(
 
             throw;
         }
+    }
+
+    public async Task<IEnumerable<CompanyResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        var userId = GetAuthenticatedUserId();
+        var companies = await _companyRepository.GetAllByUserIdAsync(userId, cancellationToken);
+
+        return companies.Select(MapToResponse);
+    }
+
+    public async Task<CompanyResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var userId = GetAuthenticatedUserId();
+        var company = await _companyRepository.GetByIdAndUserIdAsync(id, userId, cancellationToken);
+        if (company is null)
+        {
+            throw new NotFoundException(nameof(Company), id);
+        }
+
+        return MapToResponse(company);
+    }
+
+    private Guid GetAuthenticatedUserId()
+    {
+        return _currentUserService.UserId
+               ?? throw new UnauthorizedException("User is not authenticated.");
+    }
+
+    private static CompanyResponse MapToResponse(Company company)
+    {
+        return new CompanyResponse(
+            company.Id,
+            company.Name,
+            company.Slug,
+            company.Logo,
+            company.Website,
+            company.IsDefault);
     }
 }

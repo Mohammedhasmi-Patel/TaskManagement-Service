@@ -14,6 +14,22 @@ public class CompanyRepository(ApplicationDbContext dbContext) : ICompanyReposit
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
+    public async Task<Company?> GetByIdAndUserIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Companies
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Company>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Companies
+            .AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .OrderBy(c => c.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsBySlugAsync(Guid userId, string slug, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Companies
@@ -22,13 +38,12 @@ public class CompanyRepository(ApplicationDbContext dbContext) : ICompanyReposit
 
     public async Task ClearDefaultForUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var defaultCompanies = await _dbContext.Companies
+        var defaultCompany = await _dbContext.Companies
             .Where(c => c.UserId == userId && c.IsDefault)
-            .ToListAsync(cancellationToken);
-
-        foreach (var company in defaultCompanies)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (defaultCompany is not null)
         {
-            company.SetDefault(false);
+            defaultCompany.SetDefault(false);
         }
     }
 
