@@ -71,6 +71,12 @@ public class Project : BaseEntity, IAuditableEntity
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public void ChangeCompany(Guid companyId)
+    {
+        CompanyId = companyId;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void Deactivate()
     {
         IsActive = false;

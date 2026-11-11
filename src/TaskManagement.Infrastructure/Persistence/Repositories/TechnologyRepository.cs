@@ -33,6 +33,21 @@ public class TechnologyRepository(ApplicationDbContext dbContext) : ITechnologyR
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Technology>> GetByIdsAndUserIdAsync(IEnumerable<Guid> ids, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var idList = ids.Distinct().ToList();
+        if (idList.Count == 0)
+        {
+            return [];
+        }
+
+        return await _dbContext.Technologies
+            .AsNoTracking()
+            .Where(t => t.UserId == userId && idList.Contains(t.Id))
+            .OrderBy(t => t.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsBySlugAsync(Guid userId, string slug, Guid? excludeTechnologyId = null, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Technologies

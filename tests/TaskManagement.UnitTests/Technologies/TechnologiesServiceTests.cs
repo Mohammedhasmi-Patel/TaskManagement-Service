@@ -422,6 +422,17 @@ public class TechnologiesServiceTests
             return Task.FromResult(result);
         }
 
+        public Task<IReadOnlyList<Technology>> GetByIdsAndUserIdAsync(IEnumerable<Guid> ids, Guid userId, CancellationToken cancellationToken = default)
+        {
+            var idSet = ids.ToHashSet();
+            IReadOnlyList<Technology> result = _technologies
+                .Where(t => t.UserId == userId && idSet.Contains(t.Id))
+                .OrderBy(t => t.Name)
+                .ToList();
+
+            return Task.FromResult(result);
+        }
+
         public Task<bool> ExistsBySlugAsync(Guid userId, string slug, Guid? excludeTechnologyId = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(_technologies.Any(t =>
                 t.UserId == userId
