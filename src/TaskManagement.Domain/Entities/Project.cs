@@ -20,7 +20,7 @@ public class Project : BaseEntity, IAuditableEntity
 
     public Company Company { get; private set; } = null!;
     public ICollection<ProjectTechnology> ProjectTechnologies { get; private set; } = [];
-    public ICollection<Task> Tasks { get; private set; } = [];
+    public ICollection<TaskItem> Tasks { get; private set; } = [];
 
     private Project()
     {

@@ -10,7 +10,7 @@ public class StorageService(IWebHostEnvironment environment) : IStorageService
 {
     private const long MaxFileSizeInMb = 5;
     private const long MaxFileSize = MaxFileSizeInMb * 1024 * 1024;
-    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png"];
+    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 
     private readonly IWebHostEnvironment _environment = environment;
 

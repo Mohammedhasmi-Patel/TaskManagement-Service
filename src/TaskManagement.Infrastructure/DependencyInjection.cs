@@ -48,9 +48,9 @@ public static class DependencyInjection
 
         services.AddAuthorization();
 
-        // 3. Infrastructure Services & Repositories
         services.AddHttpContextAccessor();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddSingleton<IPasswordHasher, SecurePasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();

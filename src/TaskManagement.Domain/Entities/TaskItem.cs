@@ -3,7 +3,7 @@ using TaskManagement.Domain.Enums;
 
 namespace TaskManagement.Domain.Entities;
 
-public class Task : BaseEntity, IAuditableEntity
+public class TaskItem : BaseEntity, IAuditableEntity
 {
     public Guid ProjectId { get; private set; }
     public string Title { get; private set; } = string.Empty;
@@ -22,11 +22,12 @@ public class Task : BaseEntity, IAuditableEntity
     public ICollection<TaskTimeEntry> TimeEntries { get; private set; } = [];
     public ICollection<TaskTechnology> TaskTechnologies { get; private set; } = [];
 
-    private Task()
+    // Required by EF Core
+    private TaskItem()
     {
     }
 
-    public static Task Create(
+    public static TaskItem Create(
         Guid projectId,
         string title,
         string? description = null,
@@ -34,7 +35,7 @@ public class Task : BaseEntity, IAuditableEntity
         TaskPriority priority = TaskPriority.Medium,
         decimal? estimatedHours = null)
     {
-        return new Task
+        return new TaskItem
         {
             Id = Guid.NewGuid(),
             ProjectId = projectId,

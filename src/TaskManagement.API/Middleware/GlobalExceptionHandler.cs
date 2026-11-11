@@ -19,6 +19,7 @@ public class GlobalExceptionHandler(
         var (statusCode, problemDetails) = exception switch
         {
             ValidationException validationException => HandleValidationException(httpContext, validationException),
+            BadRequestException badRequestException => HandleBadRequestException(httpContext, badRequestException),
             NotFoundException notFoundException => HandleNotFoundException(httpContext, notFoundException),
             ConflictException conflictException => HandleConflictException(httpContext, conflictException),
             UnauthorizedException unauthorizedException => HandleUnauthorizedException(httpContext, unauthorizedException),
@@ -40,6 +41,20 @@ public class GlobalExceptionHandler(
         {
             Status = StatusCodes.Status400BadRequest,
             Title = "Validation Error",
+            Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.1",
+            Detail = ex.Message,
+            Instance = context.Request.Path
+        };
+
+        return (StatusCodes.Status400BadRequest, problemDetails);
+    }
+
+    private static (int, ProblemDetails) HandleBadRequestException(HttpContext context, BadRequestException ex)
+    {
+        var problemDetails = new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Bad Request",
             Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.1",
             Detail = ex.Message,
             Instance = context.Request.Path

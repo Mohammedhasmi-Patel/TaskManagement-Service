@@ -9,7 +9,7 @@ public class TaskTechnology : IAuditableEntity
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
 
-    public Task Task { get; private set; } = null!;
+    public TaskItem Task { get; private set; } = null!;
     public Technology Technology { get; private set; } = null!;
 
     private TaskTechnology()
