@@ -8,6 +8,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Company> Companies => Set<Company>();
+    public DbSet<Technology> Technologies => Set<Technology>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

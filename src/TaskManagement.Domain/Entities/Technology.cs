@@ -13,6 +13,7 @@ public class Technology : BaseEntity, IAuditableEntity
     public DateTimeOffset? UpdatedAt { get; set; }
 
     // Navigation Properties
+    public User User { get; private set; } = null!;
     public ICollection<ProjectTechnology> ProjectTechnologies { get; private set; } = [];
     public ICollection<TaskTechnology> TaskTechnologies { get; private set; } = [];
 
@@ -22,6 +23,7 @@ public class Technology : BaseEntity, IAuditableEntity
     }
 
     public static Technology Create(
+        Guid userId,
         string name,
         string slug,
         string? description = null,
@@ -30,6 +32,7 @@ public class Technology : BaseEntity, IAuditableEntity
         return new Technology
         {
             Id = Guid.NewGuid(),
+            UserId = userId,
             Name = name.Trim(),
             Slug = slug.Trim().ToLowerInvariant(),
             Description = description?.Trim(),

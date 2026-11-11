@@ -14,6 +14,9 @@ public class TechnologyConfiguration : IEntityTypeConfiguration<Technology>
         builder.Property(t => t.Id)
             .ValueGeneratedNever();
 
+        builder.Property(t => t.UserId)
+            .IsRequired();
+
         builder.Property(t => t.Name)
             .IsRequired()
             .HasMaxLength(100);
@@ -22,7 +25,7 @@ public class TechnologyConfiguration : IEntityTypeConfiguration<Technology>
             .IsRequired()
             .HasMaxLength(120);
 
-        builder.HasIndex(t => t.Slug)
+        builder.HasIndex(t => new { t.UserId, t.Slug })
             .IsUnique();
 
         builder.Property(t => t.Description)
@@ -38,6 +41,11 @@ public class TechnologyConfiguration : IEntityTypeConfiguration<Technology>
 
         builder.Property(t => t.UpdatedAt)
             .IsRequired(false);
+
+        builder.HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

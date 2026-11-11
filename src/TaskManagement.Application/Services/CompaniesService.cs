@@ -204,29 +204,8 @@ public class CompaniesService(
             company.Id,
             company.Name,
             company.Slug,
-            BuildLogoUrl(company.Logo),
+            _appOptions.BuildFileUrl(company.Logo),
             company.Website,
             company.IsDefault);
-    }
-
-    private string? BuildLogoUrl(string? logo)
-    {
-        if (string.IsNullOrWhiteSpace(logo))
-        {
-            return null;
-        }
-
-        if (Uri.TryCreate(logo, UriKind.Absolute, out _))
-        {
-            return logo;
-        }
-
-        var baseUrl = _appOptions.BackendUrl.Trim().TrimEnd('/');
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            return logo;
-        }
-
-        return $"{baseUrl}/{logo.TrimStart('/')}";
     }
 }

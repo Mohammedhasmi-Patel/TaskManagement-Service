@@ -29,4 +29,14 @@ public abstract class BaseApiController : ControllerBase
             routeValues,
             ApiResponse<T>.SuccessResponse(data, message, StatusCodes.Status201Created));
     }
+
+    protected ActionResult<ApiResponse<T>> CreatedResponse<T>(
+        string uri,
+        T data,
+        string message = "Resource created successfully.")
+    {
+        return Created(
+            uri,
+            ApiResponse<T>.SuccessResponse(data, message, StatusCodes.Status201Created));
+    }
 }
