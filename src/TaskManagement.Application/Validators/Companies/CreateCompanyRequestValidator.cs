@@ -1,7 +1,4 @@
 using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using TaskManagement.Application.DTOs.Companies;
 
 namespace TaskManagement.Application.Validators.Companies;
@@ -10,7 +7,6 @@ public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequ
 {
     public CreateCompanyRequestValidator()
     {
-        
         RuleFor(x => x.Name)
             .NotEmpty()
             .MaximumLength(150);
@@ -38,8 +34,7 @@ public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequ
         RuleFor(x => x.Logo)
             .Must(file => file == null ||
                          new[] { ".jpg", ".jpeg", ".png", ".webp" }
-                         .Contains(Path.GetExtension(file.FileName).ToLowerInvariant()))
+                         .Contains(Path.GetExtension(file.FileName)?.ToLowerInvariant() ?? string.Empty))
             .WithMessage("Only JPG, JPEG, PNG, and WEBP files are allowed.");
     }
-
 }

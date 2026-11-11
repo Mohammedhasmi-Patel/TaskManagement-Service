@@ -42,6 +42,7 @@ try
         app.UseHttpsRedirection();
     }
 
+    app.UseStaticFiles();
     app.UseCustomCors();
     app.UseAuthentication();
     app.UseAuthorization();

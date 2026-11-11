@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.API.Middleware;
 using TaskManagement.Application.Common.Models;
+using TaskManagement.Application.Common.Options;
 
 namespace TaskManagement.API.Extensions;
 
@@ -12,6 +13,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<AppOptions>(configuration.GetSection(AppOptions.SectionName));
         services.AddControllers();
         services.Configure<ApiBehaviorOptions>(options =>
         {

@@ -14,10 +14,13 @@ public class CompanyRepository(ApplicationDbContext dbContext) : ICompanyReposit
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
-    public async Task<Company?> GetByIdAndUserIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<Company?> GetByIdAndUserIdAsync(Guid id, Guid userId, bool trackChanges = false, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Companies
-            .AsNoTracking()
+        var query = trackChanges
+            ? _dbContext.Companies
+            : _dbContext.Companies.AsNoTracking();
+
+        return await query
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
     }
 
@@ -30,17 +33,24 @@ public class CompanyRepository(ApplicationDbContext dbContext) : ICompanyReposit
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> ExistsBySlugAsync(Guid userId, string slug, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsBySlugAsync(Guid userId, string slug, Guid? excludeCompanyId = null, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Companies
-            .AnyAsync(c => c.UserId == userId && c.Slug == slug, cancellationToken);
+            .AnyAsync(
+                c => c.UserId == userId
+                     && c.Slug == slug
+                     && (!excludeCompanyId.HasValue || c.Id != excludeCompanyId.Value),
+                cancellationToken);
     }
 
-    public async Task ClearDefaultForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task ClearDefaultForUserAsync(Guid userId, Guid? excludeCompanyId = null, CancellationToken cancellationToken = default)
     {
         var defaultCompany = await _dbContext.Companies
-            .Where(c => c.UserId == userId && c.IsDefault)
+            .Where(c => c.UserId == userId
+                        && c.IsDefault
+                        && (!excludeCompanyId.HasValue || c.Id != excludeCompanyId.Value))
             .FirstOrDefaultAsync(cancellationToken);
+
         if (defaultCompany is not null)
         {
             defaultCompany.SetDefault(false);
@@ -50,6 +60,12 @@ public class CompanyRepository(ApplicationDbContext dbContext) : ICompanyReposit
     public async Task AddAsync(Company company, CancellationToken cancellationToken = default)
     {
         await _dbContext.Companies.AddAsync(company, cancellationToken);
+    }
+
+    public Task DeleteAsync(Company company, CancellationToken cancellationToken = default)
+    {
+        _dbContext.Companies.Remove(company);
+        return Task.CompletedTask;
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using TaskManagement.Application.Common.Exceptions;
+using TaskManagement.Application.Common.Options;
 using TaskManagement.Application.DTOs.Companies;
 using TaskManagement.Application.DTOs.Storage;
 using TaskManagement.Application.Interfaces;
@@ -23,7 +25,9 @@ public class CompaniesServiceTests
             _companyRepository,
             _currentUserService,
             _storageService,
-            new CreateCompanyRequestValidator());
+            new CreateCompanyRequestValidator(),
+            new UpdateCompanyRequestValidator(),
+            Options.Create(new AppOptions { BackendUrl = "https://localhost:59131/" }));
     }
 
     [Fact]
@@ -74,7 +78,7 @@ public class CompaniesServiceTests
         var response = await _service.CreateAsync(request);
 
         // Assert
-        Assert.Equal("/uploads/companies/uploaded-brand.webp", response.Logo);
+        Assert.Equal("https://localhost:59131/uploads/companies/uploaded-brand.webp", response.Logo);
         Assert.Single(_storageService.UploadedFolders);
         Assert.Equal("companies", _storageService.UploadedFolders[0]);
     }
@@ -214,11 +218,17 @@ public class CompaniesServiceTests
     }
 
     [Fact]
-    public async Task GetByIdAsync_WhenCompanyExistsForUser_ShouldReturnCompany()
+    public async Task GetByIdAsync_WhenCompanyExistsForUser_ShouldReturnCompanyWithFullLogoUrl()
     {
         // Arrange
         var userId = _currentUserService.UserId!.Value;
-        var company = Company.Create(userId, "Acme Corp", "acme-corp", website: "https://acme.example.com", isDefault: true);
+        var company = Company.Create(
+            userId,
+            "Acme Corp",
+            "acme-corp",
+            logo: "/uploads/companies/logo.jpg",
+            website: "https://acme.example.com",
+            isDefault: true);
         await _companyRepository.AddAsync(company);
 
         // Act
@@ -228,6 +238,7 @@ public class CompaniesServiceTests
         Assert.Equal(company.Id, response.Id);
         Assert.Equal("Acme Corp", response.Name);
         Assert.Equal("acme-corp", response.Slug);
+        Assert.Equal("https://localhost:59131/uploads/companies/logo.jpg", response.Logo);
         Assert.Equal("https://acme.example.com", response.Website);
         Assert.True(response.IsDefault);
     }
@@ -260,6 +271,281 @@ public class CompaniesServiceTests
         await Assert.ThrowsAsync<UnauthorizedException>(() => _service.GetByIdAsync(Guid.NewGuid()));
     }
 
+    [Fact]
+    public async Task UpdateAsync_WithValidRequestWithoutNewLogo_ShouldPreserveLogoAndUpdateCompany()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(
+            userId,
+            "Old Name",
+            "old-slug",
+            description: "Old desc",
+            logo: "/uploads/companies/existing.png",
+            website: "https://old.example.com",
+            isDefault: false);
+        await _companyRepository.AddAsync(company);
+
+        var request = new UpdateCompanyRequest
+        {
+            Name = "  New Name  ",
+            Slug = "new-slug",
+            Description = "  New desc  ",
+            Website = "https://new.example.com",
+            IsDefault = true
+        };
+
+        // Act
+        var response = await _service.UpdateAsync(company.Id, request);
+
+        // Assert
+        Assert.Equal(company.Id, response.Id);
+        Assert.Equal("New Name", response.Name);
+        Assert.Equal("new-slug", response.Slug);
+        Assert.Equal("https://localhost:59131/uploads/companies/existing.png", response.Logo);
+        Assert.Equal("https://new.example.com", response.Website);
+        Assert.True(response.IsDefault);
+        Assert.Equal("New desc", company.Description);
+        Assert.Empty(_storageService.DeletedUrls);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_KeepingSameSlug_ShouldSucceed()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme Corp", "acme-corp");
+        await _companyRepository.AddAsync(company);
+
+        var request = new UpdateCompanyRequest
+        {
+            Name = "Acme Updated",
+            Slug = "acme-corp"
+        };
+
+        // Act
+        var response = await _service.UpdateAsync(company.Id, request);
+
+        // Assert
+        Assert.Equal("Acme Updated", response.Name);
+        Assert.Equal("acme-corp", response.Slug);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithNewLogo_ShouldUploadNewLogoAndDeleteOldLogo()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme Corp", "acme-corp", logo: "/uploads/companies/old.png");
+        await _companyRepository.AddAsync(company);
+
+        using var stream = new MemoryStream([1, 2, 3]);
+        var request = new UpdateCompanyRequest
+        {
+            Name = "Acme Corp",
+            Slug = "acme-corp",
+            Logo = new FormFile(stream, 0, stream.Length, "Logo", "new-logo.webp")
+        };
+
+        // Act
+        var response = await _service.UpdateAsync(company.Id, request);
+
+        // Assert
+        Assert.Equal("https://localhost:59131/uploads/companies/uploaded-new-logo.webp", response.Logo);
+        Assert.Single(_storageService.DeletedUrls);
+        Assert.Equal("/uploads/companies/old.png", _storageService.DeletedUrls[0]);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenSaveChangesFails_ShouldDeleteNewLogoAndKeepOldLogo()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme Corp", "acme-corp", logo: "/uploads/companies/old.png");
+        await _companyRepository.AddAsync(company);
+        _companyRepository.ThrowOnSave = true;
+
+        using var stream = new MemoryStream([1, 2, 3]);
+        var request = new UpdateCompanyRequest
+        {
+            Name = "Acme Corp",
+            Slug = "acme-corp",
+            Logo = new FormFile(stream, 0, stream.Length, "Logo", "new-logo.png")
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.UpdateAsync(company.Id, request));
+        Assert.Single(_storageService.DeletedUrls);
+        Assert.Equal("/uploads/companies/uploaded-new-logo.png", _storageService.DeletedUrls[0]);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithDuplicateSlugOfAnotherCompany_ShouldThrowConflictException()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var first = Company.Create(userId, "First Co", "first-co");
+        var second = Company.Create(userId, "Second Co", "second-co");
+        await _companyRepository.AddAsync(first);
+        await _companyRepository.AddAsync(second);
+
+        var request = new UpdateCompanyRequest
+        {
+            Name = "Second Co",
+            Slug = "first-co"
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ConflictException>(() => _service.UpdateAsync(second.Id, request));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenCompanyBelongsToAnotherUser_ShouldThrowNotFoundException()
+    {
+        // Arrange
+        var otherCompany = Company.Create(Guid.NewGuid(), "Other Co", "other-co");
+        await _companyRepository.AddAsync(otherCompany);
+
+        var request = new UpdateCompanyRequest
+        {
+            Name = "Hacked",
+            Slug = "hacked"
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<NotFoundException>(() => _service.UpdateAsync(otherCompany.Id, request));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithIsDefaultTrue_ShouldClearOtherDefaultCompany()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var first = Company.Create(userId, "First Co", "first-co", isDefault: true);
+        var second = Company.Create(userId, "Second Co", "second-co", isDefault: false);
+        await _companyRepository.AddAsync(first);
+        await _companyRepository.AddAsync(second);
+
+        var request = new UpdateCompanyRequest
+        {
+            Name = "Second Co",
+            Slug = "second-co",
+            IsDefault = true
+        };
+
+        // Act
+        var response = await _service.UpdateAsync(second.Id, request);
+
+        // Assert
+        Assert.True(response.IsDefault);
+        Assert.False(first.IsDefault);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithInvalidRequest_ShouldThrowValidationException()
+    {
+        // Arrange
+        var request = new UpdateCompanyRequest
+        {
+            Name = "",
+            Slug = "INVALID SLUG"
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ValidationException>(() => _service.UpdateAsync(Guid.NewGuid(), request));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenUserIsUnauthenticated_ShouldThrowUnauthorizedException()
+    {
+        // Arrange
+        _currentUserService.UserId = null;
+        var request = new UpdateCompanyRequest
+        {
+            Name = "Valid",
+            Slug = "valid"
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedException>(() => _service.UpdateAsync(Guid.NewGuid(), request));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenCompanyExistsForUser_ShouldDeleteCompanyAndLogo()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme Corp", "acme-corp", logo: "/uploads/companies/logo.png");
+        await _companyRepository.AddAsync(company);
+
+        // Act
+        await _service.DeleteAsync(company.Id);
+
+        // Assert
+        Assert.Null(await _companyRepository.GetByIdAsync(company.Id));
+        Assert.Single(_storageService.DeletedUrls);
+        Assert.Equal("/uploads/companies/logo.png", _storageService.DeletedUrls[0]);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenCompanyHasNoLogo_ShouldDeleteCompanyWithoutCallingStorageDelete()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme Corp", "acme-corp");
+        await _companyRepository.AddAsync(company);
+
+        // Act
+        await _service.DeleteAsync(company.Id);
+
+        // Assert
+        Assert.Null(await _companyRepository.GetByIdAsync(company.Id));
+        Assert.Empty(_storageService.DeletedUrls);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenCompanyDoesNotExist_ShouldThrowNotFoundException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<NotFoundException>(() => _service.DeleteAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenCompanyBelongsToAnotherUser_ShouldThrowNotFoundException()
+    {
+        // Arrange
+        var otherCompany = Company.Create(Guid.NewGuid(), "Other Co", "other-co");
+        await _companyRepository.AddAsync(otherCompany);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<NotFoundException>(() => _service.DeleteAsync(otherCompany.Id));
+        Assert.NotNull(await _companyRepository.GetByIdAsync(otherCompany.Id));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenUserIsUnauthenticated_ShouldThrowUnauthorizedException()
+    {
+        // Arrange
+        _currentUserService.UserId = null;
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UnauthorizedException>(() => _service.DeleteAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenSaveChangesFails_ShouldNotDeleteLogo()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme Corp", "acme-corp", logo: "/uploads/companies/logo.png");
+        await _companyRepository.AddAsync(company);
+        _companyRepository.ThrowOnSave = true;
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.DeleteAsync(company.Id));
+        Assert.Empty(_storageService.DeletedUrls);
+    }
+
     private sealed class InMemoryCompanyRepository : ICompanyRepository
     {
         private readonly List<Company> _companies = [];
@@ -269,7 +555,7 @@ public class CompaniesServiceTests
         public Task<Company?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(_companies.FirstOrDefault(c => c.Id == id));
 
-        public Task<Company?> GetByIdAndUserIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default) =>
+        public Task<Company?> GetByIdAndUserIdAsync(Guid id, Guid userId, bool trackChanges = false, CancellationToken cancellationToken = default) =>
             Task.FromResult(_companies.FirstOrDefault(c => c.Id == id && c.UserId == userId));
 
         public Task<IReadOnlyList<Company>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -283,12 +569,18 @@ public class CompaniesServiceTests
             return Task.FromResult(result);
         }
 
-        public Task<bool> ExistsBySlugAsync(Guid userId, string slug, CancellationToken cancellationToken = default) =>
-            Task.FromResult(_companies.Any(c => c.UserId == userId && c.Slug == slug));
+        public Task<bool> ExistsBySlugAsync(Guid userId, string slug, Guid? excludeCompanyId = null, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_companies.Any(c =>
+                c.UserId == userId
+                && c.Slug == slug
+                && (!excludeCompanyId.HasValue || c.Id != excludeCompanyId.Value)));
 
-        public Task ClearDefaultForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+        public Task ClearDefaultForUserAsync(Guid userId, Guid? excludeCompanyId = null, CancellationToken cancellationToken = default)
         {
-            foreach (var company in _companies.Where(c => c.UserId == userId && c.IsDefault))
+            foreach (var company in _companies.Where(c =>
+                c.UserId == userId
+                && c.IsDefault
+                && (!excludeCompanyId.HasValue || c.Id != excludeCompanyId.Value)))
             {
                 company.SetDefault(false);
             }
@@ -299,6 +591,12 @@ public class CompaniesServiceTests
         public Task AddAsync(Company company, CancellationToken cancellationToken = default)
         {
             _companies.Add(company);
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteAsync(Company company, CancellationToken cancellationToken = default)
+        {
+            _companies.Remove(company);
             return Task.CompletedTask;
         }
 

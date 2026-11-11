@@ -1,0 +1,14 @@
+using Microsoft.AspNetCore.Http;
+
+namespace TaskManagement.Application.DTOs.Companies;
+
+public class UpdateCompanyRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public IFormFile? Logo { get; set; }
+    public string? Website { get; set; }
+    public bool IsDefault { get; set; }
+}
+

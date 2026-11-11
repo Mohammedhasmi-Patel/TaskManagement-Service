@@ -60,5 +60,44 @@ public class CompaniesController(ICompaniesService companiesService) : BaseApiCo
         var response = await _companiesService.CreateAsync(request, cancellationToken);
         return CreatedResponse(nameof(GetById), new { id = response.Id }, response, "Company created successfully.");
     }
+
+    /// <summary>
+    /// Updates an existing company belonging to the authenticated user.
+    /// </summary>
+    /// <param name="id">Company ID.</param>
+    /// <param name="request">Updated company details.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated company.</returns>
+    [HttpPut("{id:guid}")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<CompanyResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<CompanyResponse>>> Update(
+        Guid id,
+        [FromForm] UpdateCompanyRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _companiesService.UpdateAsync(id, request, cancellationToken);
+        return OkResponse(response, "Company updated successfully.");
+    }
+
+    /// <summary>
+    /// Deletes an existing company belonging to the authenticated user.
+    /// </summary>
+    /// <param name="id">Company ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Confirmation response.</returns>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object?>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<object?>>> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _companiesService.DeleteAsync(id, cancellationToken);
+        return OkResponse("Company deleted successfully.");
+    }
 }
 

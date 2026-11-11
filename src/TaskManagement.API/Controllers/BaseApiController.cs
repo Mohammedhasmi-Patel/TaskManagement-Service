@@ -13,6 +13,11 @@ public abstract class BaseApiController : ControllerBase
         return Ok(ApiResponse<T>.SuccessResponse(data, message, StatusCodes.Status200OK));
     }
 
+    protected ActionResult<ApiResponse<object?>> OkResponse(string message = "Request completed successfully.")
+    {
+        return Ok(ApiResponse<object?>.SuccessResponse(null, message, StatusCodes.Status200OK));
+    }
+
     protected ActionResult<ApiResponse<T>> CreatedResponse<T>(
         string actionName,
         object? routeValues,

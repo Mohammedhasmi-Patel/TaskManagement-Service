@@ -4,6 +4,7 @@ namespace TaskManagement.Domain.Entities;
 
 public class Technology : BaseEntity, IAuditableEntity
 {
+    public Guid UserId { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Slug { get; private set; } = string.Empty;
     public string? Description { get; private set; }

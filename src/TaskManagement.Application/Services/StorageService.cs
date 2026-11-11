@@ -23,8 +23,12 @@ public class StorageService(IWebHostEnvironment environment) : IStorageService
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        var pathToDelete = Uri.TryCreate(fileUrl, UriKind.Absolute, out var uri)
+            ? uri.AbsolutePath
+            : fileUrl;
+
         var webRootPath = GetWebRootPath();
-        var relativePath = fileUrl
+        var relativePath = pathToDelete
             .TrimStart('/', '\\')
             .Replace('/', Path.DirectorySeparatorChar)
             .Replace('\\', Path.DirectorySeparatorChar);
