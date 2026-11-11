@@ -11,6 +11,7 @@ public static class DependencyInjection
     {
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IStorageService, StorageService>();
 
         return services;
     }

@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
+using TaskManagement.Domain.Common;
 using TaskManagement.Domain.Enums;
-
 
 namespace TaskManagement.Domain.Entities;
 
-public class Task
+public class Task : BaseEntity, IAuditableEntity
 {
-    public Guid Id { get; private set; }
     public Guid ProjectId { get; private set; }
     public string Title { get; private set; } = string.Empty;
     public string? Description { get; private set; }
@@ -18,13 +14,59 @@ public class Task
 
     public decimal? EstimatedHours { get; private set; }
 
-    public DateTimeOffset CreatedAt { get; private set; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset? UpdatedAt { get; private set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAt { get; set; }
 
-    // Navigation Properties
     public Project Project { get; private set; } = null!;
 
-    public ICollection<TaskTimeEntry> TimeEntries { get; private set; } = new List<TaskTimeEntry>();
-    public ICollection<TaskTechnology> TaskTechnologies { get; private set; } = new List<TaskTechnology>();
+    public ICollection<TaskTimeEntry> TimeEntries { get; private set; } = [];
+    public ICollection<TaskTechnology> TaskTechnologies { get; private set; } = [];
 
+    private Task()
+    {
+    }
+
+    public static Task Create(
+        Guid projectId,
+        string title,
+        string? description = null,
+        TaskStatusEnum status = TaskStatusEnum.Todo,
+        TaskPriority priority = TaskPriority.Medium,
+        decimal? estimatedHours = null)
+    {
+        return new Task
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            Title = title.Trim(),
+            Description = description?.Trim(),
+            Status = status,
+            Priority = priority,
+            EstimatedHours = estimatedHours,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+    }
+
+    public void UpdateDetails(
+        string title,
+        string? description = null,
+        decimal? estimatedHours = null)
+    {
+        Title = title.Trim();
+        Description = description?.Trim();
+        EstimatedHours = estimatedHours;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void UpdateStatus(TaskStatusEnum status)
+    {
+        Status = status;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void UpdatePriority(TaskPriority priority)
+    {
+        Priority = priority;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 }
