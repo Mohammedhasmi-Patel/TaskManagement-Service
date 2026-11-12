@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ITaskTimeEntryRepository, TaskTimeEntryRepository>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddSingleton<IPasswordHasher, SecurePasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();

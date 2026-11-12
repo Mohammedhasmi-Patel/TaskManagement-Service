@@ -53,6 +53,7 @@ public class CompaniesServiceTests
         Assert.Equal("acme-corp", response.Slug);
         Assert.Null(response.Logo);
         Assert.Equal("https://acme.example.com", response.Website);
+        Assert.Equal("Core workspace", response.Description);
         Assert.True(response.IsDefault);
 
         var saved = await _companyRepository.GetByIdAsync(response.Id);

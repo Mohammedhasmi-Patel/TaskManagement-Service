@@ -112,12 +112,7 @@ public class CompaniesService(
         }
 
         var userId = GetAuthenticatedUserId();
-        var company = await _companyRepository.GetByIdAndUserIdAsync(id, userId, trackChanges: true, cancellationToken);
-        if (company is null)
-        {
-            throw new NotFoundException(nameof(Company), id);
-        }
-
+        var company = await _companyRepository.GetByIdAndUserIdAsync(id, userId, trackChanges: true, cancellationToken) ?? throw new NotFoundException(nameof(Company), id);
         var normalizedSlug = request.Slug.Trim().ToLowerInvariant();
         var slugExists = await _companyRepository.ExistsBySlugAsync(userId, normalizedSlug, excludeCompanyId: id, cancellationToken);
         if (slugExists)
@@ -201,11 +196,12 @@ public class CompaniesService(
     private CompanyResponse MapToResponse(Company company)
     {
         return new CompanyResponse(
-            company.Id,
-            company.Name,
-            company.Slug,
-            _appOptions.BuildFileUrl(company.Logo),
-            company.Website,
-            company.IsDefault);
+            Id: company.Id,
+            Name: company.Name,
+            Slug: company.Slug,
+            Logo: _appOptions.BuildFileUrl(company.Logo),
+            Website: company.Website,
+            Description: company.Description,
+            IsDefault: company.IsDefault);
     }
 }

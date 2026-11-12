@@ -10,5 +10,6 @@ public record CompanyResponse(
     string Slug,
     string? Logo,
     string? Website,
+    string? Description,
     bool IsDefault
 );
