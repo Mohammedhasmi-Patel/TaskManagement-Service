@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<ITechnologiesService, TechnologiesService>();
         services.AddScoped<IProjectsService, ProjectsService>();
         services.AddScoped<ITasksService, TasksService>();
+        services.AddScoped<ITimeEntriesService, TimeEntriesService>();
         services.AddScoped<IStorageService, StorageService>();
 
         return services;
