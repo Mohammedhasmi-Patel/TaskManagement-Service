@@ -11,6 +11,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Technology> Technologies => Set<Technology>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectTechnology> ProjectTechnologies => Set<ProjectTechnology>();
+    public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    public DbSet<TaskTechnology> TaskTechnologies => Set<TaskTechnology>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

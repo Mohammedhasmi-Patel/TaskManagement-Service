@@ -70,4 +70,10 @@ public class TaskItem : BaseEntity, IAuditableEntity
         Priority = priority;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
+
+    public void ChangeProject(Guid projectId)
+    {
+        ProjectId = projectId;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 }
