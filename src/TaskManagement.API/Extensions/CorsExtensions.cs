@@ -6,21 +6,39 @@ public static class CorsExtensions
 
     public static IServiceCollection AddCustomCors(this IServiceCollection services, IConfiguration configuration)
     {
-        var originsSection = configuration.GetSection("Cors:AllowedOrigins");
-        var allowedOrigins = originsSection.Get<string[]>();
+        // 1. Direct environment variable or scalar configuration takes precedence
+        var rawConfigValue = configuration["Cors:AllowedOrigins"]
+                             ?? configuration["Cors:allow"]
+                             ?? configuration["Cors:AllowedOrigin"]
+                             ?? configuration["Cors__AllowedOrigins"]
+                             ?? configuration["Cors__allow"]
+                             ?? configuration["CORS_ALLOWED_ORIGINS"];
 
-        // Support single string or comma-separated list from env vars (e.g. Cors__AllowedOrigins="*")
-        if ((allowedOrigins is null || allowedOrigins.Length == 0) && !string.IsNullOrWhiteSpace(originsSection.Value))
+        string[]? allowedOrigins = null;
+
+        if (!string.IsNullOrWhiteSpace(rawConfigValue))
         {
-            allowedOrigins = originsSection.Value.Split(
+            allowedOrigins = rawConfigValue.Split(
                 ',',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+        else
+        {
+            // 2. Fallback to array section from appsettings.json
+            allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
         }
 
         allowedOrigins ??= ["http://localhost:3000", "http://localhost:5173"];
 
-        var allowAnyOrigin = allowedOrigins.Length == 0
-                             || allowedOrigins.Any(origin => origin.Trim() == "*");
+        // 3. Normalize: remove whitespace and strip trailing slashes (e.g. "https://app.vercel.app/" -> "https://app.vercel.app")
+        var normalizedOrigins = allowedOrigins
+            .Where(origin => !string.IsNullOrWhiteSpace(origin))
+            .Select(origin => origin.Trim().TrimEnd('/'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var allowAnyOrigin = normalizedOrigins.Length == 0
+                             || normalizedOrigins.Any(origin => origin == "*");
 
         services.AddCors(options =>
         {
@@ -28,13 +46,15 @@ public static class CorsExtensions
             {
                 if (allowAnyOrigin)
                 {
-                    builder.AllowAnyOrigin()
+                    // AllowAnyOrigin with credentials support via origin reflector
+                    builder.SetIsOriginAllowed(_ => true)
                         .AllowAnyHeader()
-                        .AllowAnyMethod();
+                        .AllowAnyMethod()
+                        .AllowCredentials();
                 }
                 else
                 {
-                    builder.WithOrigins(allowedOrigins)
+                    builder.WithOrigins(normalizedOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials();
