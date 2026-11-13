@@ -34,10 +34,11 @@ try
     builder.Services.AddApiServices(builder.Configuration);
 
     var app = builder.Build();
-    app.MapGet("/", () => "Hello World!");
 
     app.UseSerilogRequestLogging();
     app.UseExceptionHandler();
+
+    app.UseCustomCors();
 
     if (app.Environment.IsDevelopment())
     {
@@ -50,10 +51,10 @@ try
     }
 
     app.UseStaticFiles();
-    app.UseCustomCors();
     app.UseAuthentication();
     app.UseAuthorization();
 
+    app.MapGet("/", () => "Hello World!");
     app.MapControllers();
     app.MapCustomHealthChecks();
 
