@@ -34,6 +34,7 @@ try
     builder.Services.AddApiServices(builder.Configuration);
 
     var app = builder.Build();
+    app.MapGet("/", () => "Hello World!");
 
     app.UseSerilogRequestLogging();
     app.UseExceptionHandler();
