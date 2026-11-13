@@ -61,10 +61,10 @@ public class GlobalExceptionHandler(
     {
         _logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
 
-        var message = _environment.IsDevelopment()
-            ? ex.Message
-            : "An unexpected error occurred. Please try again later.";
-
+        // var message = _environment.IsDevelopment()
+        //     ? ex.Message
+        //     : "An unexpected error occurred. Please try again later.";
+        var message =  ex.Message;
         return (StatusCodes.Status500InternalServerError, message);
     }
 }
