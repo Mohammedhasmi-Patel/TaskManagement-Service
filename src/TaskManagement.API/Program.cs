@@ -1,8 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using TaskManagement.API.Extensions;
 using TaskManagement.API.Middleware;
 using TaskManagement.Application;
 using TaskManagement.Infrastructure;
+using TaskManagement.Infrastructure.Persistence;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -57,6 +59,17 @@ try
     app.MapGet("/", () => "Hello World!");
     app.MapControllers();
     app.MapCustomHealthChecks();
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        if (dbContext.Database.IsRelational())
+        {
+            Log.Information("Applying database migrations...");
+            await dbContext.Database.MigrateAsync();
+            Log.Information("Database migrations applied successfully.");
+        }
+    }
 
     Log.Information("Starting TaskManagement Web API host...");
     app.Run();
