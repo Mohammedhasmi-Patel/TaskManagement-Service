@@ -12,6 +12,7 @@ public class TaskRepository(ApplicationDbContext dbContext) : ITaskRepository
     public async Task<TaskItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Tasks
+            .Include(t => t.TimeEntries)
             .Include(t => t.TaskTechnologies)
                 .ThenInclude(tt => tt.Technology)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
@@ -24,6 +25,7 @@ public class TaskRepository(ApplicationDbContext dbContext) : ITaskRepository
             : _dbContext.Tasks.AsNoTracking();
 
         return await query
+            .Include(t => t.TimeEntries)
             .Include(t => t.TaskTechnologies)
                 .ThenInclude(tt => tt.Technology)
             .FirstOrDefaultAsync(t => t.Id == id && t.Project.Company.UserId == userId, cancellationToken);

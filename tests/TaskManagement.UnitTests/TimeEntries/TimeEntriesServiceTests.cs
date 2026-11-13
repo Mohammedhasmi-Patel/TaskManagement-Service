@@ -56,6 +56,24 @@ public class TimeEntriesServiceTests
         Assert.Equal(0, response.DurationSeconds);
         Assert.True(response.IsRunning);
         Assert.Equal("Working on API", response.Description);
+        Assert.Equal(TaskStatusEnum.InProgress, task.Status);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenTaskIsTodo_ShouldTransitionTaskStatusToInProgress()
+    {
+        // Arrange
+        var task = await SeedOwnedTaskAsync();
+        Assert.Equal(TaskStatusEnum.Todo, task.Status);
+
+        // Act
+        await _service.CreateAsync(new CreateTimeEntryRequest
+        {
+            TaskId = task.Id
+        });
+
+        // Assert
+        Assert.Equal(TaskStatusEnum.InProgress, task.Status);
     }
 
     [Fact]

@@ -12,6 +12,6 @@ public record TaskResponse(
     decimal? EstimatedHours,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
-    IReadOnlyList<TechnologyResponse> Technologies
+    IReadOnlyList<TechnologyResponse> Technologies,
+    IReadOnlyList<TaskTimeEntryResponse> TimeEntries
 );
-

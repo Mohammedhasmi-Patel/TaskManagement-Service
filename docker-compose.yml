@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskmanagement-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development # Enables Swagger UI at http://localhost:8080
+      - ASPNETCORE_HTTP_PORTS=8080
+      - Database__Provider=PostgreSql
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=taskmanagement;Username=postgres;Password=postgres
+      - Jwt__Issuer=TaskManagement
+      - Jwt__Audience=TaskManagement.Client
+      - Jwt__SecretKey=SuperSecretDevelopmentKeyForTaskManagementApiMin32Chars!
+      - Jwt__ExpirationMinutes=60
+      - Cors__AllowedOrigins=*
+      - App__BackendUrl=http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskmanagement-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=taskmanagement
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d taskmanagement"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+

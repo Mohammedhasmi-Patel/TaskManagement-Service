@@ -3,6 +3,7 @@ using TaskManagement.Application.Common.Exceptions;
 using TaskManagement.Application.DTOs.TimeEntries;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Entities;
+using TaskManagement.Domain.Enums;
 using ValidationException = TaskManagement.Application.Common.Exceptions.ValidationException;
 
 namespace TaskManagement.Application.Services;
@@ -29,10 +30,16 @@ public class TimeEntriesService(
         }
 
         var userId = GetAuthenticatedUserId();
-        var task = await _taskRepository.GetByIdAndUserIdAsync(request.TaskId, userId, trackChanges: false, cancellationToken);
+        var task = await _taskRepository.GetByIdAndUserIdAsync(request.TaskId, userId, trackChanges: true, cancellationToken);
         if (task is null)
         {
             throw new NotFoundException(nameof(TaskItem), request.TaskId);
+        }
+
+        if (task.Status == TaskStatusEnum.Todo || (request.EndTime is null && task.Status != TaskStatusEnum.InProgress))
+        {
+            task.UpdateStatus(TaskStatusEnum.InProgress);
+            await _taskRepository.SaveChangesAsync(cancellationToken);
         }
 
         var startTime = (request.StartTime ?? DateTimeOffset.UtcNow).ToUniversalTime();

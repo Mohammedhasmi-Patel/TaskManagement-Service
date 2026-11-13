@@ -190,6 +190,45 @@ public class TasksServiceTests
     }
 
     [Fact]
+    public async Task GetByIdAsync_WhenTaskHasMultipleTimeEntries_ShouldReturnTimeEntriesOrderedByStartTimeDescending()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme", "acme");
+        var project = Project.Create(company.Id, "Portal", "portal");
+        var task = TaskItem.Create(project.Id, "Tracked Task");
+
+        var earlier = DateTimeOffset.UtcNow.AddHours(-3);
+        var later = DateTimeOffset.UtcNow.AddHours(-1);
+
+        var entry1 = TaskTimeEntry.Create(task.Id, earlier, earlier.AddMinutes(30), "First session");
+        var entry2 = TaskTimeEntry.Create(task.Id, later, null, "Current session");
+
+        task.TimeEntries.Add(entry1);
+        task.TimeEntries.Add(entry2);
+
+        await _companyRepository.AddAsync(company);
+        await _projectRepository.AddAsync(project);
+        await _taskRepository.AddAsync(task);
+
+        // Act
+        var response = await _service.GetByIdAsync(task.Id);
+
+        // Assert
+        Assert.NotNull(response);
+        Assert.Equal(2, response.TimeEntries.Count);
+        Assert.Equal("Current session", response.TimeEntries[0].Description);
+        Assert.Equal(later, response.TimeEntries[0].StartTime);
+        Assert.Null(response.TimeEntries[0].EndTime);
+        Assert.Equal(0, response.TimeEntries[0].TotalTimeInSeconds);
+
+        Assert.Equal("First session", response.TimeEntries[1].Description);
+        Assert.Equal(earlier, response.TimeEntries[1].StartTime);
+        Assert.Equal(earlier.AddMinutes(30), response.TimeEntries[1].EndTime);
+        Assert.Equal(1800, response.TimeEntries[1].TotalTimeInSeconds);
+    }
+
+    [Fact]
     public async Task UpdateAsync_WithValidDataAndTechnologies_ShouldUpdateTask()
     {
         // Arrange

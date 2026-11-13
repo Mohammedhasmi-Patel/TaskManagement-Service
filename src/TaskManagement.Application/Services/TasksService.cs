@@ -91,6 +91,7 @@ public class TasksService(
     {
         var userId = GetAuthenticatedUserId();
         var task = await _taskRepository.GetByIdAndUserIdAsync(id, userId, trackChanges: false, cancellationToken);
+        
         if (task is null)
         {
             throw new NotFoundException(nameof(TaskItem), id);
@@ -219,6 +220,11 @@ public class TasksService(
                 .OrderBy(t => t.Name)
                 .ToList();
 
+        var timeEntries = task.TimeEntries
+            .OrderByDescending(te => te.StartTime)
+            .Select(MapTaskTimeEntryResponse)
+            .ToList();
+
         return new TaskResponse(
             task.Id,
             task.ProjectId,
@@ -229,7 +235,23 @@ public class TasksService(
             task.EstimatedHours,
             task.CreatedAt,
             task.UpdatedAt,
-            techList);
+            techList,
+            timeEntries);
+    }
+
+    private static TaskTimeEntryResponse MapTaskTimeEntryResponse(TaskTimeEntry entry)
+    {
+        var totalTime = entry.DurationSeconds > 0
+            ? entry.DurationSeconds
+            : (entry.EndTime.HasValue && entry.EndTime.Value > entry.StartTime
+                ? (long)(entry.EndTime.Value - entry.StartTime).TotalSeconds
+                : 0);
+
+        return new TaskTimeEntryResponse(
+            entry.Description,
+            entry.StartTime,
+            entry.EndTime,
+            totalTime);
     }
 
     private TechnologyResponse MapTechnologyResponse(Technology technology)
