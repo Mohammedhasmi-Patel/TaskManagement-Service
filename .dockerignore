@@ -1,0 +1,37 @@
+# Git
+**/.git
+**/.gitignore
+**/.gitattributes
+**/.github
+
+# IDE & Editor caches
+**/.vs/
+**/.vscode/
+**/.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build outputs & packages
+**/bin/
+**/obj/
+**/publish/
+**/publish-test/
+
+# Test projects and results
+tests/
+**/TestResults/
+
+# Logs & temp files
+**/*.log
+*.tmp
+
+# Documentation and meta
+README.md
+.editorconfig
+docker-compose*.yml
+.env
+.env.*
+!.env.example
+
