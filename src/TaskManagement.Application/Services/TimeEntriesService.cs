@@ -117,13 +117,28 @@ public class TimeEntriesService(
             throw new BadRequestException("Time entry is already stopped.");
         }
 
-        var effectiveEndTime = (request?.EndTime ?? DateTimeOffset.UtcNow).ToUniversalTime();
-        if (effectiveEndTime < entry.StartTime)
+        if (request?.Description?.Length > 1000)
         {
-            throw new BadRequestException("End time must be on or after start time.");
+            throw new BadRequestException("Description must not exceed 1000 characters.");
         }
 
-        entry.Stop(effectiveEndTime);
+        var nowUtc = DateTimeOffset.UtcNow;
+        if (request?.EndTime is { } requestedEndTime)
+        {
+            var explicitEndTime = requestedEndTime.ToUniversalTime();
+            if (explicitEndTime < entry.StartTime)
+            {
+                throw new BadRequestException("End time must be on or after start time.");
+            }
+
+            entry.Stop(explicitEndTime, request.Description);
+        }
+        else
+        {
+            var effectiveEndTime = nowUtc < entry.StartTime ? entry.StartTime : nowUtc;
+            entry.Stop(effectiveEndTime, request?.Description);
+        }
+
         await _timeEntryRepository.SaveChangesAsync(cancellationToken);
 
         return MapToResponse(entry);

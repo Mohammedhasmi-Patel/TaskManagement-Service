@@ -70,10 +70,19 @@ public class TasksService(
         Guid? projectId = null,
         TaskStatusEnum? status = null,
         TaskPriority? priority = null,
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
         CancellationToken cancellationToken = default)
     {
         var userId = GetAuthenticatedUserId();
-        var tasks = await _taskRepository.GetAllByUserIdAsync(userId, projectId, status, priority, cancellationToken);
+        var tasks = await _taskRepository.GetAllByUserIdAsync(
+            userId,
+            projectId,
+            status,
+            priority,
+            fromDate,
+            toDate,
+            cancellationToken);
 
         return tasks.Select(t => MapToResponse(t));
     }

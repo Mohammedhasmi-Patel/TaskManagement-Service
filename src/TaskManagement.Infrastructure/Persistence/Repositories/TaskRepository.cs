@@ -34,8 +34,13 @@ public class TaskRepository(ApplicationDbContext dbContext) : ITaskRepository
         Guid? projectId = null,
         TaskStatusEnum? status = null,
         TaskPriority? priority = null,
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
         CancellationToken cancellationToken = default)
     {
+        var fromUtc = fromDate?.ToUniversalTime();
+        var toUtc = toDate?.ToUniversalTime();
+
         return await _dbContext.Tasks
             .AsNoTracking()
             .Include(t => t.TaskTechnologies)
@@ -44,7 +49,9 @@ public class TaskRepository(ApplicationDbContext dbContext) : ITaskRepository
                 t.Project.Company.UserId == userId
                 && (!projectId.HasValue || t.ProjectId == projectId.Value)
                 && (!status.HasValue || t.Status == status.Value)
-                && (!priority.HasValue || t.Priority == priority.Value))
+                && (!priority.HasValue || t.Priority == priority.Value)
+                && (!fromUtc.HasValue || t.CreatedAt >= fromUtc.Value)
+                && (!toUtc.HasValue || t.CreatedAt <= toUtc.Value))
             .OrderBy(t => t.Title)
             .ToListAsync(cancellationToken);
     }

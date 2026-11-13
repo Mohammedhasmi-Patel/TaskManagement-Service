@@ -18,6 +18,8 @@ public class TasksController(ITasksService tasksService) : BaseApiController
     /// <param name="projectId">Optional project ID filter.</param>
     /// <param name="status">Optional task status filter.</param>
     /// <param name="priority">Optional task priority filter.</param>
+    /// <param name="fromDate">Optional inclusive start date filter (UTC/offset).</param>
+    /// <param name="toDate">Optional inclusive end date filter (UTC/offset).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The user's tasks ordered alphabetically by title.</returns>
     [HttpGet]
@@ -27,9 +29,11 @@ public class TasksController(ITasksService tasksService) : BaseApiController
         [FromQuery] Guid? projectId,
         [FromQuery] TaskStatusEnum? status,
         [FromQuery] TaskPriority? priority,
+        [FromQuery] DateTimeOffset? fromDate,
+        [FromQuery] DateTimeOffset? toDate,
         CancellationToken cancellationToken)
     {
-        var response = await _tasksService.GetAllAsync(projectId, status, priority, cancellationToken);
+        var response = await _tasksService.GetAllAsync(projectId, status, priority, fromDate, toDate, cancellationToken);
         return OkResponse(response, "Tasks retrieved successfully.");
     }
 

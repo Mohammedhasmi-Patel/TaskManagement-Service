@@ -12,6 +12,8 @@ public interface ITaskRepository
         Guid? projectId = null,
         TaskStatusEnum? status = null,
         TaskPriority? priority = null,
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
         CancellationToken cancellationToken = default);
     Task AddAsync(TaskItem task, CancellationToken cancellationToken = default);
     Task DeleteAsync(TaskItem task, CancellationToken cancellationToken = default);

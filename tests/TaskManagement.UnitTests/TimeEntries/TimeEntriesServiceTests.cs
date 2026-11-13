@@ -74,7 +74,6 @@ public class TimeEntriesServiceTests
             EndTime = end
         });
 
-        // Assert
         Assert.False(response.IsRunning);
         Assert.Equal(2700, response.DurationSeconds);
     }
@@ -145,12 +144,49 @@ public class TimeEntriesServiceTests
         await _timeEntryRepository.AddAsync(entry);
 
         // Act
-        var response = await _service.StopAsync(entry.Id, new StopTimeEntryRequest { EndTime = start.AddHours(1.5) });
+        var response = await _service.StopAsync(entry.Id, new StopTimeEntryRequest
+        {
+            EndTime = start.AddHours(1.5),
+            Description = "  Finished API work  "
+        });
 
         // Assert
         Assert.False(response.IsRunning);
         Assert.Equal(5400, response.DurationSeconds);
         Assert.Equal(start.AddHours(1.5), response.EndTime);
+        Assert.Equal("Finished API work", response.Description);
+    }
+
+    [Fact]
+    public async Task StopAsync_WithoutExplicitEndTime_WhenStartTimeIsInFuture_ShouldClampToStartTime()
+    {
+        // Arrange
+        var task = await SeedOwnedTaskAsync();
+        var futureStart = DateTimeOffset.UtcNow.AddMinutes(30);
+        var entry = TaskTimeEntry.Create(task.Id, futureStart);
+        await _timeEntryRepository.AddAsync(entry);
+
+        // Act
+        var response = await _service.StopAsync(entry.Id);
+
+        // Assert
+        Assert.False(response.IsRunning);
+        Assert.Equal(0, response.DurationSeconds);
+        Assert.Equal(futureStart, response.EndTime);
+    }
+
+    [Fact]
+    public async Task StopAsync_WithExplicitEndTimeBeforeStartTime_ShouldThrowBadRequestException()
+    {
+        // Arrange
+        var task = await SeedOwnedTaskAsync();
+        var start = new DateTimeOffset(2026, 11, 12, 10, 0, 0, TimeSpan.Zero);
+        var entry = TaskTimeEntry.Create(task.Id, start);
+        await _timeEntryRepository.AddAsync(entry);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _service.StopAsync(entry.Id, new StopTimeEntryRequest { EndTime = start.AddMinutes(-5) }));
     }
 
     [Fact]
@@ -302,7 +338,7 @@ public class TimeEntriesServiceTests
         public Task<TaskItem?> GetByIdAndUserIdAsync(Guid id, Guid userId, bool trackChanges = false, CancellationToken cancellationToken = default) =>
             Task.FromResult(_tasks.FirstOrDefault(t => t.Id == id && projectRepository.OwnsProject(t.ProjectId, userId)));
 
-        public Task<IReadOnlyList<TaskItem>> GetAllByUserIdAsync(Guid userId, Guid? projectId = null, TaskStatusEnum? status = null, TaskPriority? priority = null, CancellationToken cancellationToken = default) =>
+        public Task<IReadOnlyList<TaskItem>> GetAllByUserIdAsync(Guid userId, Guid? projectId = null, TaskStatusEnum? status = null, TaskPriority? priority = null, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<TaskItem>>([]);
 
         public Task AddAsync(TaskItem task, CancellationToken cancellationToken = default)

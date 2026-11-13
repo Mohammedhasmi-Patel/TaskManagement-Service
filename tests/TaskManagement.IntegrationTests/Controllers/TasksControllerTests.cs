@@ -223,6 +223,45 @@ public class TasksControllerTests(CustomWebApplicationFactory factory) : IClassF
         Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
     }
 
+    [Fact]
+    public async Task GetAll_WithDateRangeFilter_FiltersTasksByCreatedAt()
+    {
+        // Arrange
+        var token = await RegisterAndGetTokenAsync();
+        var company = await CreateCompanyAsync(token, "Acme", $"acme-{Guid.NewGuid():N}");
+        var project = await CreateProjectAsync(token, company.Id, "Portal", $"portal-{Guid.NewGuid():N}");
+        await SendJsonAsync(HttpMethod.Post, "/api/tasks", token, new CreateTaskRequest
+        {
+            ProjectId = project.Id,
+            Title = "Today Task"
+        });
+
+        var from = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddMinutes(-5).ToString("O"));
+        var to = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddMinutes(5).ToString("O"));
+        var inRangeReq = new HttpRequestMessage(HttpMethod.Get, $"/api/tasks?projectId={project.Id}&fromDate={from}&toDate={to}");
+        inRangeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var pastFrom = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(-10).ToString("O"));
+        var pastTo = Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(-5).ToString("O"));
+        var outOfRangeReq = new HttpRequestMessage(HttpMethod.Get, $"/api/tasks?projectId={project.Id}&fromDate={pastFrom}&toDate={pastTo}");
+        outOfRangeReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Act
+        var inRangeRes = await _client.SendAsync(inRangeReq);
+        var outOfRangeRes = await _client.SendAsync(outOfRangeReq);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, inRangeRes.StatusCode);
+        var inRangeEnvelope = await inRangeRes.Content.ReadFromJsonAsync<ApiResponse<List<TaskResponse>>>();
+        Assert.NotNull(inRangeEnvelope?.Data);
+        Assert.Single(inRangeEnvelope.Data);
+
+        Assert.Equal(HttpStatusCode.OK, outOfRangeRes.StatusCode);
+        var outOfRangeEnvelope = await outOfRangeRes.Content.ReadFromJsonAsync<ApiResponse<List<TaskResponse>>>();
+        Assert.NotNull(outOfRangeEnvelope?.Data);
+        Assert.Empty(outOfRangeEnvelope.Data);
+    }
+
     private async Task<string> RegisterAndGetTokenAsync()
     {
         var email = $"task_user_{Guid.NewGuid()}@example.com";

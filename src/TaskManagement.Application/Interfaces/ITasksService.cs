@@ -10,6 +10,8 @@ public interface ITasksService
         Guid? projectId = null,
         TaskStatusEnum? status = null,
         TaskPriority? priority = null,
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
         CancellationToken cancellationToken = default);
     Task<TaskResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<TaskResponse> UpdateAsync(Guid id, UpdateTaskRequest request, CancellationToken cancellationToken = default);

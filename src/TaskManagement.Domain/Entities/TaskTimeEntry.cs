@@ -52,11 +52,15 @@ public class TaskTimeEntry : BaseEntity, IAuditableEntity
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public void Stop(DateTimeOffset? endTime = null)
+    public void Stop(DateTimeOffset? endTime = null, string? description = null)
     {
         var effectiveEndTime = endTime ?? DateTimeOffset.UtcNow;
         EndTime = effectiveEndTime;
         DurationSeconds = CalculateDurationSeconds(StartTime, effectiveEndTime, null);
+        if (description is not null)
+        {
+            Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        }
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

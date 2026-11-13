@@ -147,6 +147,34 @@ public class TasksServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_WithDateRange_ShouldReturnOnlyTasksWithinRange()
+    {
+        // Arrange
+        var userId = _currentUserService.UserId!.Value;
+        var company = Company.Create(userId, "Acme", "acme");
+        var project = Project.Create(company.Id, "P1", "p1");
+        await _companyRepository.AddAsync(company);
+        await _projectRepository.AddAsync(project);
+
+        var oldTask = TaskItem.Create(project.Id, "Old Task");
+        oldTask.CreatedAt = DateTimeOffset.UtcNow.AddDays(-10);
+        var recentTask = TaskItem.Create(project.Id, "Recent Task");
+        recentTask.CreatedAt = DateTimeOffset.UtcNow.AddHours(-1);
+
+        await _taskRepository.AddAsync(oldTask);
+        await _taskRepository.AddAsync(recentTask);
+
+        // Act
+        var todayTasks = (await _service.GetAllAsync(
+            fromDate: DateTimeOffset.UtcNow.Date,
+            toDate: DateTimeOffset.UtcNow.Date.AddDays(1).AddTicks(-1))).ToList();
+
+        // Assert
+        Assert.Single(todayTasks);
+        Assert.Equal("Recent Task", todayTasks[0].Title);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_WhenTaskBelongsToAnotherUser_ShouldThrowNotFoundException()
     {
         // Arrange
@@ -245,14 +273,21 @@ public class TasksServiceTests
             Guid? projectId = null,
             TaskStatusEnum? status = null,
             TaskPriority? priority = null,
+            DateTimeOffset? fromDate = null,
+            DateTimeOffset? toDate = null,
             CancellationToken cancellationToken = default)
         {
+            var fromUtc = fromDate?.ToUniversalTime();
+            var toUtc = toDate?.ToUniversalTime();
+
             IReadOnlyList<TaskItem> result = _tasks
                 .Where(t =>
                     projectRepository.OwnsProject(t.ProjectId, userId)
                     && (!projectId.HasValue || t.ProjectId == projectId.Value)
                     && (!status.HasValue || t.Status == status.Value)
-                    && (!priority.HasValue || t.Priority == priority.Value))
+                    && (!priority.HasValue || t.Priority == priority.Value)
+                    && (!fromUtc.HasValue || t.CreatedAt >= fromUtc.Value)
+                    && (!toUtc.HasValue || t.CreatedAt <= toUtc.Value))
                 .OrderBy(t => t.Title)
                 .ToList();
 
